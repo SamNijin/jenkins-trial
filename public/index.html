@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+    form { display: flex; gap: .5rem; }
+    input[type=text] { flex: 1; padding: .5rem; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid #ddd; }
+    li.done span { text-decoration: line-through; color: #888; }
+    li span { flex: 1; }
+    footer { margin-top: 2rem; font-size: .8rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Todo</h1>
+  <form id="form">
+    <input type="text" id="title" placeholder="What needs doing?" autofocus required>
+    <button>Add</button>
+  </form>
+  <ul id="list"></ul>
+  <footer id="info"></footer>
+  <script>
+    const list = document.getElementById('list');
+    const api = (path, opts) => fetch('/api' + path, {
+      headers: { 'Content-Type': 'application/json' }, ...opts
+    });
+
+    async function load() {
+      const todos = await (await api('/todos')).json();
+      list.innerHTML = '';
+      for (const t of todos) {
+        const li = document.createElement('li');
+        li.className = t.done ? 'done' : '';
+        const cb = Object.assign(document.createElement('input'), { type: 'checkbox', checked: t.done });
+        cb.onchange = async () => { await api('/todos/' + t.id, { method: 'PATCH', body: JSON.stringify({ done: cb.checked }) }); load(); };
+        const span = document.createElement('span');
+        span.textContent = t.title;
+        const del = document.createElement('button');
+        del.textContent = '✕';
+        del.onclick = async () => { await api('/todos/' + t.id, { method: 'DELETE' }); load(); };
+        li.append(cb, span, del);
+        list.append(li);
+      }
+    }
+
+    document.getElementById('form').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('title');
+      await api('/todos', { method: 'POST', body: JSON.stringify({ title: input.value }) });
+      input.value = '';
+      load();
+    };
+
+    api('/info').then(r => r.json()).then(i => {
+      document.getElementById('info').textContent = `served by ${i.hostname} · version ${i.version}`;
+    });
+    load();
+  </script>
+</body>
+</html>
