@@ -35,8 +35,14 @@ pipeline {
     stage('Install & Test') {
       agent { docker { image 'node:22-alpine' } }
       steps {
-        sh 'npm ci || npm install'
-        sh 'npm test'
+        // The container runs as the host's jenkins uid, which has no home dir, so npm's default
+        // cache path (/.npm) is not writable. Keep the cache inside the workspace instead.
+        sh '''
+          export HOME="$PWD"
+          export npm_config_cache="$PWD/.npm"
+          npm ci || npm install
+          npm test
+        '''
       }
     }
 
